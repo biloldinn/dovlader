@@ -9,6 +9,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiohttp import web
 
 from config.settings import settings
 from media_bot.handlers import start, upload, list_media, search, admin
@@ -19,20 +21,23 @@ logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(settings.LOG_FILE),
+        logging.FileHandler(settings.LOG_FILE) if not settings.WEBHOOK_HOST else logging.StreamHandler(),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
+async def on_startup(bot: Bot):
+    await init_db()
+    if settings.WEBHOOK_URL:
+        await bot.set_webhook(settings.WEBHOOK_URL)
+        logger.info(f"Webhook set to: {settings.WEBHOOK_URL}")
+    else:
+        logger.info("Starting in polling mode...")
+
 async def main():
-    # Ensure directories exist
     settings.setup_directories()
     
-    # Initialize database
-    await init_db()
-    
-    # Create bot and dispatcher
     bot = Bot(
         token=settings.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=None)
@@ -46,13 +51,32 @@ async def main():
     dp.include_router(search.router)
     dp.include_router(admin.router)
     
-    # Start polling
-    logger.info("Bot professional versiyada ishga tushdi!")
-    
-    try:
+    dp.startup.register(on_startup)
+
+    if settings.WEBHOOK_HOST:
+        # Webhook mode
+        app = web.Application()
+        webhook_requests_handler = SimpleRequestHandler(
+            dispatcher=dp,
+            bot=bot,
+        )
+        webhook_requests_handler.register(app, path=settings.WEBHOOK_PATH)
+        setup_application(app, dp, bot=bot)
+        
+        logger.info(f"Starting webhook on {settings.WEBAPP_HOST}:{settings.WEBAPP_PORT}")
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, settings.WEBAPP_HOST, settings.WEBAPP_PORT)
+        await site.start()
+        
+        # Keep running
+        await asyncio.Event().wait()
+    else:
+        # Polling mode
         await dp.start_polling(bot)
-    finally:
-        await bot.session.close()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
