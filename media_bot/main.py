@@ -29,11 +29,14 @@ logger = logging.getLogger(__name__)
 
 async def on_startup(bot: Bot):
     await init_db()
-    if settings.WEBHOOK_URL:
-        await bot.set_webhook(settings.WEBHOOK_URL)
-        logger.info(f"Webhook set to: {settings.WEBHOOK_URL}")
+    if settings.WEBHOOK_HOST:
+        webhook_url = settings.WEBHOOK_URL
+        await bot.delete_webhook(drop_pending_updates=True)
+        await bot.set_webhook(webhook_url)
+        logger.info(f"Webhook o'rnatildi: {webhook_url}")
     else:
-        logger.info("Starting in polling mode...")
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Bot Polling rejimida ishga tushmoqda...")
 
 async def main():
     settings.setup_directories()
