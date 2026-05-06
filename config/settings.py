@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / "config" / ".env"),
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
+        env_file_required=False
     )
 
     # Bot
@@ -65,10 +66,10 @@ class Settings(BaseSettings):
     LOG_FILE: Path = BASE_DIR / "logs" / "bot.log"
     
     # Webhook
-    WEBHOOK_HOST: Optional[str] = os.getenv("WEBHOOK_HOST")
+    WEBHOOK_HOST: Optional[str] = None
     WEBHOOK_PATH: str = "/webhook"
     WEBAPP_HOST: str = "0.0.0.0"
-    WEBAPP_PORT: int = int(os.getenv("PORT", 8000))
+    WEBAPP_PORT: int = 8000 # Will be overridden by PORT env if present
     
     @property
     def WEBHOOK_URL(self) -> Optional[str]:
