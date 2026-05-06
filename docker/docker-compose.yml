@@ -25,6 +25,7 @@ services:
     depends_on:
       - postgres
       - redis
+    restart: always
     volumes:
       - media_data:/app/media
       - logs:/app/logs
