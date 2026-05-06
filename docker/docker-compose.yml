@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: media_bot
+      POSTGRES_USER: media_user
+      POSTGRES_PASSWORD: secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  bot:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://media_user:secure_password@postgres:5432/media_bot
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - media_data:/app/media
+      - logs:/app/logs
+
+volumes:
+  postgres_data:
+  media_data:
+  logs:
